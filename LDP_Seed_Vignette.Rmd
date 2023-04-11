@@ -2,7 +2,7 @@
 title: "R Vignette"
 subtitle: "AGILE LDP Seed"
 author: "Derek Michael Wright <derek.wright@usask.ca>"
-date: "10-08-2022"
+date: "10-08-2023"
 output:
   rmdformats::readthedown:
     code_folding: show
