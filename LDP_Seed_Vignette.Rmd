@@ -1,0 +1,47 @@
+---
+title: "R Vignette"
+subtitle: "AGILE LDP Seed"
+author: "Derek Michael Wright <derek.wright@usask.ca>"
+date: "10-08-2022"
+output:
+  rmdformats::readthedown:
+    code_folding: show
+    css: custom.css
+    gallery: yes
+    highlight: tango
+    lightbox: yes
+    self_contained: no
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T)
+```
+
+---
+
+# Introduction
+
+```{r eval = F, echo = F}
+library(agiler)
+xx <- AGILE_Seed %>% 
+  select(-ZeroTannin, -Helium, -Helium_Sut18, -SeedComment)
+write.csv(xx, "myLDP_Seed.csv", row.names = F)
+```
+
+`r shiny::icon("save")` [myLDP_Seed.csv](myLDP_Seed.csv)
+
+```{r}
+xx <- read.csv("myLDP_Seed.csv", stringsAsFactors = T)
+```
+
+```{r}
+summary(xx$Size)
+summary(xx$CotyledonColor)
+summary(xx$TestaColor)
+summary(xx$TestaPattern)
+summary(xx$BlackTesta)
+```
+
+---
+
+&copy; Derek Michael Wright
