@@ -1,4 +1,6 @@
 .Rproj.user
 .Rhistory
-.RData
-.Ruserdata
+
+GWAS_Results/
+Data_Raw/
+myG_LDP.csv

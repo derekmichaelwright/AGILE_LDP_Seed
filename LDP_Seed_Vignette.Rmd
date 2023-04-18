@@ -44,4 +44,75 @@ summary(xx$BlackTesta)
 
 ---
 
+```{r}
+library(agData)
+```
+
+```{r}
+# Prep data
+#
+# Morocco
+xx <- read.csv("Data_BELT/BELT_raw_data/Morocco 2017.csv") 
+x1 <- xx %>% 
+  group_by(metadata_directory_1) %>%
+  summarise(Volume = mean(volume.mm.3., na.rm = T),
+            SD = sd(volume.mm.3., na.rm = T)) %>%
+  mutate(Expt = "Mo17")
+#
+xx <- read.csv("Data_BELT/BELT_raw_data/Italy 2017.csv") 
+x2 <- xx %>% 
+  group_by(metadata_directory_1) %>%
+  summarise(Volume = mean(volume.mm.3., na.rm = T),
+            SD = sd(volume.mm.3., na.rm = T)) %>%
+  mutate(Expt = "It17")
+#
+xx <- read.csv("Data_BELT/BELT_raw_data/Spain 2017.csv") 
+x3 <- xx %>% 
+  group_by(metadata_directory_1) %>%
+  summarise(Volume = mean(volume.mm.3., na.rm = T),
+            SD = sd(volume.mm.3., na.rm = T)) %>%
+  mutate(Expt = "Sp17")
+#
+xx <- read.csv("Data_BELT/BELT_raw_data/Rosthern 2017.csv") 
+x4 <- xx %>% 
+  group_by(metadata_directory_1) %>%
+  summarise(Volume = mean(volume.mm.3., na.rm = T),
+            SD = sd(volume.mm.3., na.rm = T)) %>%
+  mutate(Expt = "Ro17")
+#
+xx <- read.csv("Data_BELT/BELT_raw_data/Sutherland 2017.csv") 
+x5 <- xx %>% 
+  group_by(metadata_directory_1) %>%
+  summarise(Volume = mean(volume.mm.3., na.rm = T),
+            SD = sd(volume.mm.3., na.rm = T)) %>%
+  mutate(Expt = "Su17")
+#
+xx <- read.csv("Data_BELT/BELT_raw_data/Sutherland 2018.csv")
+x6 <- xx %>% 
+  group_by(metadata_directory_1) %>%
+  summarise(Volume = mean(volume.mm.3., na.rm = T),
+            SD = sd(volume.mm.3., na.rm = T)) %>%
+  mutate(Expt = "Su18")
+#
+xx <- bind_rows(x1, x2, x3, x4, x5, x6) %>%
+  mutate(Entry = substr(metadata_directory_1, 1, regexpr("_", metadata_directory_1)-1),
+         Entry = as.numeric(Entry)) %>%
+  filter(Entry < 400)
+#
+ggplot(xx, aes(x = Entry, color = Expt)) +
+  geom_point(aes(y = Volume))
+```
+
+---
+
+```{r}
+
+```
+
+---
+
+
+
+---
+
 &copy; Derek Michael Wright
