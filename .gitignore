@@ -1,6 +1,21 @@
 .Rproj.user
 .Rhistory
 
+Data/GWAS/myG_LDP.csv
+
+Data/myPlots2.csv
+
+data check/
+Data_Other/
+
 GWAS_Results/
-Data_Raw/
-myG_LDP.csv
+GWAS_Results_LDP/
+GWAS_Results_old/
+
+ManH/
+ManH_old/
+old_figs/
+old_figs_new/
+
+LDP_Seed_Vignette_check data.Rmd
+

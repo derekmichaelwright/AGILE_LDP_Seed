@@ -17,36 +17,371 @@ output:
 knitr::opts_chunk$set(echo = T)
 ```
 
----
-
-# Introduction
-
 ```{r eval = F, echo = F}
 library(agiler)
+myTypes1 <- c("Marbled", "Dotted", "Spotted", "Dotted;Spotted", "Dotted;Marbled",
+              "Mottle1", "Mottle2", "Mottle3", "Mixed")
+myTypes2 <- c("Pattern", "Pattern", "Pattern", "Pattern", "Pattern",
+              "Mottle", "Mottle", "Mottle", "Mottle")
 xx <- AGILE_Seed %>% 
-  select(-ZeroTannin, -Helium, -Helium_Sut18, -SeedComment)
-write.csv(xx, "myLDP_Seed.csv", row.names = F)
+  select(-ZeroTannin, -Helium, -Helium_Sut18, -SeedComment, -TestaSubColor) %>%
+  mutate(TestaPatternGroup = plyr::mapvalues(TestaPattern, myTypes1, myTypes2)) %>%
+  select(Entry, Name, Size, CotyledonColor, TestaColor, 
+         TestaPatternGroup, TestaPattern, BlackTesta, everything()) %>%
+  rename(Seed.Size=Size, Cotyledon.Color=CotyledonColor, 
+         Testa.Color=TestaColor, Testa.Pattern.Group=TestaPatternGroup,
+         Testa.Pattern=TestaPattern, Black.Testa=BlackTesta, 
+         Seed.Area=area, Seed.Perimeter=perimeter, Seed.Diameter=diameter,
+         Minor.Axis=minor.axis, Major.Axis=major.axis,
+         Seed.Mass.1000.2015=SeedMass1000.2015, Seed.Mass.1000.2016=SeedMass1000.2016,
+         Seed.Mass.1000.2017=SeedMass1000.2017, Seed.Mass.1000.2018=SeedMass1000.2018,
+         Plumpness.2015=Plumpness_2015, Plumpness.2016=Plumpness_2016,
+         Plumpness.2017=Plumpness_2017, Plumpness.2018=Plumpness_2018)
+colnames(xx)
+write.csv(xx, "Data/myLDP_Seed.csv", row.names = F)
+#
+myExpts <- c("Sutherland 2017", "Sutherland 2018",
+             "Morocco 2017", "Italy 2017",
+             "Spain 2017", "Rosthern 2017")
+xx <- AGILE_Plots %>% filter(Expt %in% myExpts) %>%
+  select(Expt, Plot, Rep, Entry, Name)
+write.csv(xx, "Data/myPlots2.csv", row.names = F)
+xx <- bind_rows(AGILE_Sutherland_2017_Raw, AGILE_Sutherland_2018_Raw,
+                AGILE_Morocco_2017_Raw, AGILE_Spain_2017_Raw,
+                AGILE_Italy_2017_Raw, AGILE_Rosthern_2017_Raw) %>%
+  select(Expt, Plot, Rep, Entry, Name)
+write.csv(xx, "Data/myPlots.csv", row.names = F)
+#
+yy <- AGILE_Sutherland_2018 %>%
+  left_join(xx %>% select(Entry, Testa.Pattern, Cotyledon.Color, Black.Testa), by = "Entry") 
+mp <- ggplot(yy, aes(x = Black.Testa)) +
+  geom_bar(stat = "count") + 
+  facet_grid(.~`Purple Pod Pigmentation (numeric)`) +
+  theme_agiler(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "purple pod")
+ggsave("zz_Figure_black_purple pod.png", mp, width = 8, height = 4)
+mp <- ggplot(yy, aes(x = Testa.Pattern)) +
+  geom_bar(stat = "count") + 
+  facet_grid(.~`Purple Pod Pigmentation (numeric)`) +
+  theme_agiler(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "purple pod")
+ggsave("zz_Figure_purple pod.png", mp, width = 8, height = 4)
+mp <- ggplot(yy, aes(x = Testa.Pattern)) +
+  geom_bar(stat = "count") + 
+  facet_grid(.~`Red Pod Pigmentation (numeric)`) +
+  theme_agiler(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "red pod")
+ggsave("zz_Figure_red pod.png", mp, width = 8, height = 4)
+mp <- ggplot(yy, aes(x = Testa.Pattern)) +
+  geom_bar(stat = "count") + 
+  facet_grid(.~`Heavy Red Pod Pigmentation (numeric)`) +
+  theme_agiler(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "red pod")
+ggsave("zz_Figure_Hred pod.png", mp, width = 8, height = 4)
+mp <- ggplot(yy, aes(x = Testa.Pattern)) +
+  geom_bar(stat = "count") + 
+  facet_grid(.~`Stem Pigmentation (day 50; numeric)`) +
+  theme_agiler(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "red pod")
+ggsave("zz_Figure_stempig.png", mp, width = 8, height = 4)
+mp <- ggplot(yy, aes(x = Cotyledon.Color)) +
+  geom_bar(stat = "count") + 
+  facet_grid(.~`Stem Pigmentation (day 50; numeric)`) +
+  theme_agiler(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "red pod")
+ggsave("zz_Figure_stempig2.png", mp, width = 8, height = 4)
 ```
 
-`r shiny::icon("save")` [myLDP_Seed.csv](myLDP_Seed.csv)
+---
+
+# Prepare Data
+
+`r shiny::icon("save")` [Data/myLDP_Seed.csv](Data/myLDP_Seed.csv)
+
+`r shiny::icon("save")` [Data/myPlots.csv](Data/myPlots.csv)
+
+`r shiny::icon("save")` [Data/BELT.zip](Data/BELT.zip)
 
 ```{r}
-xx <- read.csv("myLDP_Seed.csv", stringsAsFactors = T)
+library(tidyverse)
+library(ggpubr)
+library(ggbeeswarm)
+#
+theme_AGL <- theme_bw() + 
+  theme(strip.background   = element_rect(colour = "black", fill = NA, size = 0.5),
+        panel.background   = element_rect(colour = "black", fill = NA, size = 0.5),
+        panel.border       = element_rect(colour = "black", size = 0.5),
+        panel.grid         = element_line(color  = alpha("black", 0.1), size = 0.5),
+        panel.grid.minor.x = element_blank(), 
+        panel.grid.minor.y = element_blank())
+```
+
+## Prepare Manual Data
+
+```{r}
+#
+mySizes <- c("S", "M", "L", "XL")
+myCotylC <- c("Red", "Yellow", "Red/Yellow", "Green")
+myTestaC <- c("Dark Green", "Green", "Grey", "Tan", "Brown", "Black", "Mixed")
+myTestaP <- c("Absent", "Dotted", "Dotted;Marbled", "Dotted;Spotted", 
+              "Marbled", "Spotted", "Mottle1", "Mottle2", "Mottle3", "Mixed")
+myTestaG <- c("Absent", "Present", "Mottle", "Pattern")
+myColors_Testa <- c("darkgreen", "green3", "darkblue","darkred",
+                    "darkorange4", "black", "grey")
+#
+myLDP <- read.csv("Data/myLDP_Seed.csv", stringsAsFactors = T) %>%
+  mutate(Cotyledon.Color = factor(Cotyledon.Color, levels = myCotylC),
+         Testa.Color = factor(Testa.Color, levels = myTestaC),
+         Testa.Pattern.Group = factor(Testa.Pattern.Group, levels = myTestaG),
+         Testa.Pattern = factor(Testa.Pattern, levels = myTestaP),
+         Black.Testa = factor(Black.Testa, levels = myTestaG))
+```
+
+## Prepare BELT data
+
+```{r}
+#
+myPlots <- read.csv("Data/myPlots.csv")
+#
+dd_Sp17 <- read.csv("Data/BELT/Spain 2017.csv") %>%
+  separate(col = metadata_directory_1, into = c("Plot", "Rep", "Expt"), 
+           sep = "_", remove = F) %>%
+  select(-Rep, -Expt) %>%
+  mutate(Plot = as.integer(Plot)) %>%
+  left_join(myPlots, by = "Plot") %>%
+  select(Expt, Rep, Plot, Entry, Name, everything() )
+#
+dd_Mo17 <- read.csv("Data/BELT/Morocco 2017.csv") %>%
+  separate(col = metadata_directory_1, into = c("Entry", "Plot", "Rep", "Expt"), 
+           sep = "_", remove = F) %>%
+  mutate(Entry = as.integer(Entry)) %>%
+  left_join(select(myLDP, Entry, Name), by = "Entry") %>%
+  select(Expt, Rep, Plot, Entry, Name, everything() ) 
+#
+dd_It17 <- read.csv("Data/BELT/Italy 2017.csv")  %>%
+  separate(col = metadata_directory_1, into = c("Entry", "Plot", "Rep", "Expt"), 
+           sep = "_", remove = F) %>%
+  mutate(Entry = as.integer(Entry)) %>%
+  left_join(select(myLDP, Entry, Name), by = "Entry") %>%
+  select(Expt, Rep, Plot, Entry, Name, everything() )
+#
+dd_Ro17 <- read.csv("Data/BELT/Rosthern 2017.csv")  %>%
+  separate(col = metadata_directory_1, into = c("Entry", "Plot", "Rep", "Expt"), 
+           sep = "_", remove = F) %>%
+  mutate(Entry = as.integer(Entry)) %>%
+  left_join(select(myLDP, Entry, Name), by = "Entry") %>%
+  select(Expt, Rep, Plot, Entry, Name, everything() )
+#
+dd_Su17 <- read.csv("Data/BELT/Sutherland 2017.csv") %>%
+  separate(col = metadata_directory_1, into = c("Entry", "Plot", "Rep", "Expt"), 
+           sep = "_", remove = F) %>%
+  mutate(Entry = as.integer(Entry)) %>%
+  left_join(select(myLDP, Entry, Name), by = "Entry") %>%
+  select(Expt, Rep, Plot, Entry, Name, everything() )
+#
+dd_Su18 <- read.csv("Data/BELT/Sutherland 2018.csv") %>%
+  separate(col = metadata_directory_1, into = c("Entry", "Plot", "Rep", "Expt"), 
+           sep = "_", remove = F) %>%
+  mutate(Entry = as.integer(Entry)) %>%
+  left_join(select(myLDP, Entry, Name), by = "Entry") %>%
+  select(Expt, Rep, Plot, Entry, Name, everything() )
+```
+
+---
+
+# Figure 01 - LDP Seed Data
+
+![](Figure_01.png)
+
+```{r}
+# Prep data
+myTs <- c("Seed.Size", "Cotyledon.Color", "Testa.Color", "Testa.Pattern", "Black.Testa")
+myLs <- c("S", "M", "L", "XL", "Red", "Yellow", "Red/Yellow", "Green",
+          "Dark Green", "Grey", "Tan", "Brown", "Black", "Mixed",
+          "Absent", "Dotted", "Dotted;Marbled", "Dotted;Spotted", 
+          "Marbled", "Spotted", "Mottle1", "Mottle2", "Mottle3", 
+          "Present", "Mottle", "Pattern")
+xx <- myLDP %>% select(Name, myTs) %>%
+  gather(Trait, Value, 2:ncol(.)) %>% 
+  mutate(Trait = factor(Trait, levels = myTs),
+         Value = factor(Value, levels = myLs)) %>%
+  group_by(Trait) %>% count(Value)
+mp <- ggplot(xx, aes(x = Value, y = n)) +
+  geom_bar(stat = "identity", color = "black", fill = "darkgreen", alpha = 0.7) +
+  facet_grid(. ~ Trait, scales = "free_x", space = "free_x") +
+  theme_AGL +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(y = "Count", x = NULL)
+ggsave("Figure_01.png", mp, width = 10, height = 4)
 ```
 
 ```{r}
-summary(xx$Size)
-summary(xx$CotyledonColor)
-summary(xx$TestaColor)
-summary(xx$TestaPattern)
-summary(xx$BlackTesta)
+summary(myLDP$Seed.Size)
+summary(myLDP$Cotyledon.Color)
+summary(myLDP$Testa.Color)
+summary(myLDP$Testa.Pattern)
+summary(myLDP$Black.Testa)
+```
+
+---
+
+# Figure 02 - Size x Cotyledon Color
+
+```{r}
+#
+xx <- myLDP %>% filter(Cotyledon.Color %in% c("Red", "Yellow"))
+#
+mp <- ggplot(xx, aes(x = Cotyledon.Color, y = Seed.Mass.1000.2018)) +
+  geom_violin() +
+  geom_quasirandom(aes(color = Testa.Color), width = 0.3, alpha = 0.7) +
+  scale_color_manual(values = myColors_Testa) +
+  theme_AGL 
+ggsave("Figure_02.png", mp, width = 6, height = 4)
+```
+
+---
+
+# Figure 03 - Size x Testa Color
+
+```{r}
+#
+xx <- myLDP %>% filter(Testa.Color != "Mixed")
+#
+mp <- ggplot(xx, aes(x = Testa.Color, y = Seed.Mass.1000.2018, 
+                     shape = Testa.Pattern.Group)) +
+  geom_quasirandom(aes(color = Testa.Color), width = 0.3, alpha = 0.7) +
+  scale_color_manual(values = myColors_Testa) +
+  scale_shape_manual(values = c(16,18,8)) +
+  theme_AGL 
+ggsave("Figure_03.png", mp, width = 6, height = 4)
+```
+
+---
+
+# Figure 04 - lab scores
+
+```{r}
+# Create Plotting Function
+gg_lab <- function(xx = dd_Sp17, myTitle = "") {
+  # Prep data
+  xi <- xx %>% 
+    gather(Trait, Value, 11:ncol(.)) %>%
+    group_by(Entry, Trait) %>%
+    summarise(Value = mean(Value, na.rm = T) ) %>%
+    spread(Trait, Value) %>%
+    left_join(myLDP, by = "Entry")
+  myShapes <- c(1, 10, 16)
+  # Plot
+  mp1 <- ggplot(xi, aes(x = a_mean, y = b_mean, 
+                        color = Testa.Color, shape = Testa.Pattern.Group)) +
+    geom_point() +
+    scale_color_manual(values = myColors_Testa) +
+    scale_shape_manual(name = "Testa Pattern", values = myShapes) +
+    theme_AGL +
+    labs(title = myTitle)
+  mp2 <- ggplot(xi, aes(x = a_mean, y = l_mean, 
+                        color = Testa.Color, shape = Testa.Pattern.Group)) +
+    geom_point() +
+    scale_color_manual(values = myColors_Testa) +
+    scale_shape_manual(name = "Testa Pattern", values = myShapes) +
+    theme_AGL +
+    labs(title = "")
+  mp3 <- ggplot(xi, aes(x = b_mean, y = l_mean, 
+                        color = Testa.Color, shape = Testa.Pattern.Group)) +
+    geom_point() +
+    scale_color_manual(values = myColors_Testa) +
+    scale_shape_manual(name = "Testa Pattern", values = myShapes) +
+    theme_AGL +
+    labs(title = "")
+  ggarrange(mp1, mp2, mp3, ncol = 3, legend = "right", common.legend = T)
+}
+#
+mp <- gg_lab(dd_It17, "It17")
+ggsave("Figure_04a_It17.png", mp, width = 12, height = 4, bg = "white")
+#
+mp <- gg_lab(dd_Mo17, "Mo17")
+ggsave("Figure_04b_Mo17.png", mp, width = 12, height = 4, bg = "white")
+#
+mp <- gg_lab(dd_Sp17, "Sp17")
+ggsave("Figure_04c_Sp17.png", mp, width = 12, height = 4, bg = "white")
+#
+mp <- gg_lab(dd_Ro17, "Ro17")
+ggsave("Figure_04d_Ro17.png", mp, width = 12, height = 4, bg = "white")
+#
+mp <- gg_lab(dd_Su17, "Su17")
+ggsave("Figure_04e_Su17.png", mp, width = 12, height = 4, bg = "white")
+#
+mp <- gg_lab(dd_Su18, "Su18")
+ggsave("Figure_04f_Su18.png", mp, width = 12, height = 4, bg = "white")
 ```
 
 ---
 
 ```{r}
-library(agData)
+# Create Plotting Function
+gg_lab2 <- function(xx = dd_Sp17, myTitle = "") {
+  # Prep data
+  xi <- xx %>% 
+    gather(Trait, Value, 11:ncol(.)) %>%
+    group_by(Entry, Trait) %>%
+    summarise(Value = mean(Value, na.rm = T) ) %>%
+    spread(Trait, Value) %>%
+    left_join(myLDP, by = "Entry") %>%
+    filter(Testa.Pattern.Group == "Absent")
+  myShapes <- c(16, 16, 16)
+  # Plot
+  mp1 <- ggplot(xi, aes(x = a_mean, y = b_mean, 
+                        color = Testa.Color, shape = Testa.Pattern.Group)) +
+    geom_point() +
+    scale_color_manual(values = myColors_Testa) +
+    scale_shape_manual(name = "Testa Pattern", values = myShapes) +
+    theme_AGL +
+    labs(title = myTitle)
+  mp2 <- ggplot(xi, aes(x = a_mean, y = l_mean, 
+                        color = Testa.Color, shape = Testa.Pattern.Group)) +
+    geom_point() +
+    scale_color_manual(values = myColors_Testa) +
+    scale_shape_manual(name = "Testa Pattern", values = myShapes) +
+    theme_AGL +
+    labs(title = "")
+  mp3 <- ggplot(xi, aes(x = b_mean, y = l_mean, 
+                        color = Testa.Color, shape = Testa.Pattern.Group)) +
+    geom_point() +
+    scale_color_manual(values = myColors_Testa) +
+    scale_shape_manual(name = "Testa Pattern", values = myShapes) +
+    theme_AGL +
+    labs(title = "")
+  ggarrange(mp1, mp2, mp3, ncol = 3, legend = "right", common.legend = T)
+}
+#
+mp <- gg_lab2(dd_It17, "It17")
+ggsave("Figure_05a_It17.png", mp, width = 12, height = 4, bg = "white")
+#
+mp <- gg_lab2(dd_Mo17, "Mo17")
+ggsave("Figure_05b_Mo17.png", mp, width = 12, height = 4, bg = "white")
+#
+mp <- gg_lab2(dd_Sp17, "Sp17")
+ggsave("Figure_05c_Sp17.png", mp, width = 12, height = 4, bg = "white")
+#
+mp <- gg_lab2(dd_Ro17, "Ro17")
+ggsave("Figure_05d_Ro17.png", mp, width = 12, height = 4, bg = "white")
+#
+mp <- gg_lab2(dd_Su17, "Su17")
+ggsave("Figure_05e_Su17.png", mp, width = 12, height = 4, bg = "white")
+#
+mp <- gg_lab2(dd_Su18, "Su18")
+ggsave("Figure_05f_Su18.png", mp, width = 12, height = 4, bg = "white")
 ```
+
+---
+
+```{r}
+myLDP %>% filter(Name %in% c("3156-11 AGL", "PI 477921 LSP AGL", "ILL 4783 AGL",
+                             "W6 27754 LSP AGL", "CDC Cherie AGL", "CDC Redwing AGL",
+                             "CDC Imax AGL"))
+```
+
+---
 
 ```{r}
 # Prep data
@@ -105,13 +440,734 @@ ggplot(xx, aes(x = Entry, color = Expt)) +
 
 ---
 
+# Prep GWAS data
+
 ```{r}
+#
+myY_LDP <- myLDP %>%
+  mutate(Cotyledon.Color = plyr::mapvalues(Cotyledon.Color, myCotylC, c(0,1,NA,NA)),
+         Seed.Size = plyr::mapvalues(Seed.Size, mySizes, c(1,2,3,4)),
+         #
+         Testa.Color.Green = plyr::mapvalues(Testa.Color, myTestaC, c(1,1,0,0,0,NA,NA)),
+         Testa.Color.Grey = plyr::mapvalues(Testa.Color, myTestaC, c(0,0,1,0,1,NA,NA)),
+         Testa.Color.Tan = plyr::mapvalues(Testa.Color, myTestaC, c(0,0,0,1,1,NA,NA)),
+         Testa.Color.Brown = plyr::mapvalues(Testa.Color, myTestaC, c(0,0,1,1,1,NA,NA)),
+         #
+         Testa.Color.Green.v.Grey = plyr::mapvalues(Testa.Color, myTestaC, c(NA,0,1,NA,NA,NA,NA)),
+         Testa.Color.Green.v.Tan = plyr::mapvalues(Testa.Color, myTestaC, c(NA,0,NA,1,NA,NA,NA)),
+         Testa.Color.Green.v.Brown = plyr::mapvalues(Testa.Color, myTestaC, c(NA,0,NA,NA,1,NA,NA)),
+         Testa.Color.Grey.v.Tan = plyr::mapvalues(Testa.Color, myTestaC, c(NA,NA,0,1,NA,NA,NA)),
+         #
+         Testa.Color.black = plyr::mapvalues(Testa.Color, myTestaC, c(0,0,0,0,0,1,NA)),
+         #
+         Testa.Pattern.All = plyr::mapvalues(Testa.Pattern.Group, myTestaG[-2], c(0,1,1)),
+         Testa.Pattern.Present = plyr::mapvalues(Testa.Pattern.Group, myTestaG[-2], c(0,NA,1)),
+         Testa.Pattern.Mottle = plyr::mapvalues(Testa.Pattern.Group, myTestaG[-2], c(0,1,NA)),
+         Testa.Pattern.Mottle.v.Present = plyr::mapvalues(Testa.Pattern.Group, myTestaG[-2], c(NA,0,1)),
+         #
+         Testa.Pattern.Dotted = plyr::mapvalues(Testa.Pattern, myTestaP, c(0,1,1,1,NA,NA,NA,NA,NA,NA)),
+         Testa.Pattern.Marbled = plyr::mapvalues(Testa.Pattern, myTestaP, c(0,NA,1,NA,1,NA,NA,NA,NA,NA)),
+         Testa.Pattern.Spotted = plyr::mapvalues(Testa.Pattern, myTestaP, c(0,NA,NA,1,NA,1,NA,NA,NA,NA)),
+         Testa.Pattern.Mottle123 = plyr::mapvalues(Testa.Pattern, myTestaP, c(0,NA,NA,NA,NA,NA,1,2,3,NA))
+         ) %>%
+  select(-Entry, -Testa.Color, -Testa.Pattern, -Testa.Pattern.Group, -Black.Testa) %>%
+  mutate(Name = gsub(" ", "_", Name),
+         Name = gsub("-", "\\.", Name),
+         Name = plyr::mapvalues(Name, "3156.11_AGL", "X3156.11_AGL"))
+colnames(myY_LDP)[2:ncol(myY_LDP)] <- paste0(colnames(myY_LDP)[2:ncol(myY_LDP)], "_LDP")
+write.csv(myY_LDP, "Data/GWAS/myY_LDP.csv", row.names = F)
+```
+
+```{r}
+#
+myY_It17 <- dd_It17 %>% gather(Trait, Value, 11:ncol(.)) %>% 
+  mutate(Value = ifelse(is.infinite(Value), NA, Value)) %>%
+  group_by(Name, Trait) %>% 
+  summarise(Value = mean(Value, na.rm = T)) %>%
+  ungroup() %>%
+  mutate(Trait = gsub("_", ".", Trait),
+         Trait = paste0(Trait, "_It17")) %>%
+  spread(Trait, Value) %>%
+  mutate(Name = gsub(" ", "_", Name),
+         Name = gsub("-", "\\.", Name),
+         Name = plyr::mapvalues(Name, "3156.11_AGL", "X3156.11_AGL"))
+#
+myY_Mo17 <- dd_Mo17 %>% gather(Trait, Value, 11:ncol(.)) %>% 
+  mutate(Value = ifelse(is.infinite(Value), NA, Value)) %>%
+  group_by(Name, Trait) %>% 
+  summarise(Value = mean(Value, na.rm = T)) %>%
+  ungroup() %>%
+  mutate(Trait = gsub("_", ".", Trait),
+         Trait = paste0(Trait, "_Mo17")) %>%
+  spread(Trait, Value) %>%
+  mutate(Name = gsub(" ", "_", Name),
+         Name = gsub("-", "\\.", Name),
+         Name = plyr::mapvalues(Name, "3156.11_AGL", "X3156.11_AGL"))
+#
+myY_Sp17 <- dd_Sp17 %>% gather(Trait, Value, 11:ncol(.)) %>% 
+  mutate(Value = ifelse(is.infinite(Value), NA, Value)) %>%
+  group_by(Name, Trait) %>% 
+  summarise(Value = mean(Value, na.rm = T)) %>%
+  ungroup() %>%
+  mutate(Trait = gsub("_", ".", Trait),
+         Trait = paste0(Trait, "_Sp17")) %>%
+  spread(Trait, Value) %>%
+  mutate(Name = gsub(" ", "_", Name),
+         Name = gsub("-", "\\.", Name),
+         Name = plyr::mapvalues(Name, "3156.11_AGL", "X3156.11_AGL"))
+#
+myY_Su17 <- dd_Su17 %>% gather(Trait, Value, 11:ncol(.)) %>% 
+  mutate(Value = ifelse(is.infinite(Value), NA, Value)) %>%
+  group_by(Name, Trait) %>% 
+  summarise(Value = mean(Value, na.rm = T)) %>%
+  ungroup() %>%
+  mutate(Trait = gsub("_", ".", Trait),
+         Trait = paste0(Trait, "_Su17")) %>%
+  spread(Trait, Value) %>%
+  mutate(Name = gsub(" ", "_", Name),
+         Name = gsub("-", "\\.", Name),
+         Name = plyr::mapvalues(Name, "3156.11_AGL", "X3156.11_AGL"))
+#
+myY_Su18 <- dd_Su18 %>% gather(Trait, Value, 11:ncol(.)) %>% 
+  mutate(Value = ifelse(is.infinite(Value), NA, Value)) %>%
+  group_by(Name, Trait) %>% 
+  summarise(Value = mean(Value, na.rm = T)) %>%
+  ungroup() %>%
+  mutate(Trait = gsub("_", ".", Trait),
+         Trait = paste0(Trait, "_Su18")) %>%
+  spread(Trait, Value) %>%
+  mutate(Name = gsub(" ", "_", Name),
+         Name = gsub("-", "\\.", Name),
+         Name = plyr::mapvalues(Name, "3156.11_AGL", "X3156.11_AGL"))
+#
+myY_Ro17 <- dd_Ro17 %>% gather(Trait, Value, 11:ncol(.)) %>% 
+  mutate(Value = ifelse(is.infinite(Value), NA, Value)) %>%
+  group_by(Name, Trait) %>% 
+  summarise(Value = mean(Value, na.rm = T)) %>%
+  ungroup() %>%
+  mutate(Trait = gsub("_", ".", Trait),
+         Trait = paste0(Trait, "_Ro17")) %>%
+  spread(Trait, Value) %>%
+  mutate(Name = gsub(" ", "_", Name),
+         Name = gsub("-", "\\.", Name),
+         Name = plyr::mapvalues(Name, "3156.11_AGL", "X3156.11_AGL"))
+#
+write.csv(myY_It17, "Data/GWAS/myY_BELT_It17.csv", row.names = F)
+write.csv(myY_Mo17, "Data/GWAS/myY_BELT_Mo17.csv", row.names = F)
+write.csv(myY_Sp17, "Data/GWAS/myY_BELT_Sp17.csv", row.names = F)
+write.csv(myY_Su17, "Data/GWAS/myY_BELT_Su17.csv", row.names = F)
+write.csv(myY_Su18, "Data/GWAS/myY_BELT_Su18.csv", row.names = F)
+write.csv(myY_Ro17, "Data/GWAS/myY_BELT_Ro17.csv", row.names = F)
+```
+
+---
+
+# GWAS
+
+`r shiny::icon("save")` [Data/GWAS/myG_LDP.zip](Data/GWAS/myG_LDP.zip)
+
+`r shiny::icon("save")` [Data/GWAS/myY_LDP.csv](Data/GWAS/myY_LDP.csv)
+
+`r shiny::icon("save")` [Data/GWAS/myY_BELT_It17.csv](Data/GWAS/myY_BELT_It17.csv)
+
+`r shiny::icon("save")` [Data/GWAS/myY_BELT_Mo17.csv](Data/GWAS/myY_BELT_Mo17.csv)
+
+`r shiny::icon("save")` [Data/GWAS/myY_BELT_Sp17.csv](Data/GWAS/myY_BELT_Sp17.csv)
+
+`r shiny::icon("save")` [Data/GWAS/myY_BELT_Ro17.csv](Data/GWAS/myY_BELT_Ro17.csv)
+
+`r shiny::icon("save")` [Data/GWAS/myY_BELT_Su17.csv](Data/GWAS/myY_BELT_Su17.csv)
+
+`r shiny::icon("save")` [Data/GWAS/myY_BELT_Su18.csv](Data/GWAS/myY_BELT_Su18.csv)
+
+```{r}
+library(GAPIT3) # devtools::install_github("jiabowang/GAPIT3",force=TRUE)
+```
+
+```{r}
+#
+myG <- read.csv("Data/GWAS/myG_LDP.csv", header = F)
+#
+myY_LDP <- read.csv("Data/GWAS/myY_LDP.csv")
+myY_BELT_Su18 <- read.csv("Data/GWAS/myY_BELT_Su18.csv")
+myY_BELT_Su17 <- read.csv("Data/GWAS/myY_BELT_Su17.csv")
+myY_BELT_Ro17 <- read.csv("Data/GWAS/myY_BELT_Ro17.csv")
+myY_BELT_Mo17 <- read.csv("Data/GWAS/myY_BELT_Mo17.csv")
+myY_BELT_It17 <- read.csv("Data/GWAS/myY_BELT_It17.csv")
+myY_BELT_Sp17 <- read.csv("Data/GWAS/myY_BELT_Sp17.csv")
+#
+#setdiff(t(myG[1,]), myY_Su17$Name)
+#setdiff(myY_Su17$Name, t(myG[1,]))
+#
+#myY_LDP[, 2:ncol(myY_LDP)] <- sapply(myY_LDP[, 2:ncol(myY_LDP)], as.numeric)
+#myY_LDP$LDP_CotyledonColor
+```
+
+```{r}
+#
+# Run GWAS
+#
+myGAPIT <- GAPIT(
+  Y = myY_LDP[,c(1,3)], G = myG, PCA.total = 4,
+  model = c("MLM" ),#,"FarmCPU" "BLINK",
+  Phenotype.View = F
+)
+#
+myGAPIT <- GAPIT(
+  Y = myY_LDP[,c(-3)], G = myG, PCA.total = 4,
+  model = c("MLM"),
+  Phenotype.View = F
+)
+myGAPIT <- GAPIT(
+  Y = myY_LDP[,c(-3)], G = myG, PCA.total = 4,
+  model = c("FarmCPU"),
+  Phenotype.View = F
+)
+myGAPIT <- GAPIT(
+  Y = myY_LDP[,c(-3)], G = myG, PCA.total = 4,
+  model = c("BLINK"),
+  Phenotype.View = F
+)
+myGAPIT <- GAPIT(
+  Y = myY_LDP[,c(1,25:32)], G = myG, PCA.total = 4,
+  model = c("BLINK"),
+  Phenotype.View = F
+)
+myGAPIT <- GAPIT(
+  Y = myY_LDP[,c(1,18:32)], G = myG, PCA.total = 4,
+  model = c("MLM"),
+  Phenotype.View = F
+)
+myGAPIT <- GAPIT(
+  Y = myY_LDP[,c(1,24)], G = myG, PCA.total = 4,
+  model = c("BLINK"),
+  Phenotype.View = F
+)
+colnames(myY_LDP)
+#
+#
+#
+#
+#
+myGAPIT <- GAPIT(
+  Y = myY_BELT_Su17, G = myG, PCA.total = 4,
+  model = c("MLM","FarmCPU","BLINK"),
+  Phenotype.View = F
+)
+#
+myGAPIT <- GAPIT(
+  Y = myY_BELT_Su18, G = myG, PCA.total = 4,
+  model = c("MLM","FarmCPU","BLINK"),
+  Phenotype.View = F
+)
+#
+myGAPIT <- GAPIT(
+  Y = myY_BELT_Ro17, G = myG, PCA.total = 4,
+  model = c("MLM","FarmCPU","BLINK"),
+  Phenotype.View = F
+)
+#
+myGAPIT <- GAPIT(
+  Y = myY_BELT_It17, G = myG, PCA.total = 4,
+  model = c("MLM","FarmCPU","BLINK"),
+  Phenotype.View = F
+)
+#
+myGAPIT <- GAPIT(
+  Y = myY_BELT_Mo17, G = myG, PCA.total = 4,
+  model = c("MLM","FarmCPU","BLINK"),
+  Phenotype.View = F
+)
+#
+myGAPIT <- GAPIT(
+  Y = myY_BELT_Sp17, G = myG, PCA.total = 4,
+  model = c("MLM","FarmCPU","BLINK"),
+  Phenotype.View = F
+)
+```
+
+```{r}
+myY <- read.csv("")
 
 ```
 
 ---
 
+# Post-GWAS
 
+```{r}
+library(gwaspr)
+myG <- read.csv("Data/GWAS/myG_LDP.csv", header = T)
+#
+myY_Mo17 <- read.csv("Data/GWAS/myY_BELT_Mo17.csv")
+myY_It17 <- read.csv("Data/GWAS/myY_BELT_It17.csv")
+myY_Sp17 <- read.csv("Data/GWAS/myY_BELT_Sp17.csv")
+myY_Ro17 <- read.csv("Data/GWAS/myY_BELT_Ro17.csv")
+myY_Su17 <- read.csv("Data/GWAS/myY_BELT_Su17.csv")
+myY_Su18 <- read.csv("Data/GWAS/myY_BELT_Su18.csv")
+myY_LDP <- read.csv("Data/GWAS/myY_LDP.csv")
+```
+
+```{r}
+myTraits <- list_Traits(folder = "GWAS_Results/")
+# myTraits
+myFiles <- list_Result_Files(folder = "GWAS_Results/")
+# myFiles
+```
+
+
+```{r}
+myTraits <- list_Traits(folder = "GWAS_Results_LDP/")
+# myTraits
+myFiles <- list_Result_Files(folder = "GWAS_Results_LDP/")
+# myFiles
+```
+
+```{r eval = F}
+# first reorder the result files if they are not already arranged by P.value
+order_GWAS_Results(folder = "GWAS_Results_LDP/", files = myFiles)
+```
+
+```{r eval = F}
+# first reorder the result files if they are not already arranged by P.value
+order_GWAS_Results(folder = "GWAS_Results_LDP/", files = myFiles)
+```
+
+```{r}
+myResults <- table_GWAS_Results(folder = "GWAS_Results/", files = myFiles,
+                   threshold = 6.7, sug.threshold = 6)
+myResults[1:10,]
+write.csv(myResults, "Significant_Associations_table.csv", row.names = F)
+```
+
+
+```{r}
+list_Top_Markers(trait = "Seed.Mass.1000.2018_LDP", model = "MLM", 
+                 folder = "GWAS_Results/", threshold = 6.7)
+#
+list_Top_Markers(trait = "Testa.Color.Grey_LDP", model = "MLM", 
+                 folder = "GWAS_Results/", threshold = 6.7)
+list_Top_Markers(trait = "b.75_Su17", model = "MLM", folder = "GWAS_Results/", 
+                 threshold = 6.7)
+#
+list_Top_Markers(trait = "Testa.Color.Tan_LDP", model = "MLM", 
+                 folder = "GWAS_Results/", threshold = 5)
+#
+list_Top_Markers(trait = "Testa.Pattern.All_LDP", model = "MLM", folder = "GWAS_Results/", 
+                 threshold = 6.7, n = 5)
+#
+myMarkers <- c("Lcu.2RBY.Chr1p320538401", "Lcu.2RBY.Chr2p7720261",
+               "Lcu.2RBY.Chr3p373453683", "Lcu.2RBY.Chr6p12213767")
+myMarkersC <- c("red", "red", "green", "blue")
+```
+
+```{r}
+xx <- read.csv("Significant_Associations_table.csv")
+xx %>% filter(grepl("Cotyledon",Trait))#, Pos > 300000000, Pos < 310000000)
+xx %>% filter(grepl("SeedMass",Trait))#, Pos > 300000000, Pos < 310000000)
+xx %>% filter(grepl("Grey",Trait), Chr == 2, Pos > 7950000, Pos < 8000000)
+xx %>% filter(grepl("Tan",Trait), Chr == 3)#, Pos > 300000000, Pos < 310000000)
+xx %>% filter(grepl("Tan",Trait), Chr == 3, Pos > 370000000, Pos < 380000000)
+xx %>% filter(grepl("Pattern",Trait), Chr ==6)#, Pos > 300000000, Pos < 310000000)
+```
+
+
+```{r}
+#
+xx <- read.csv("Significant_Associations_table.csv")#read.csv("Supplemental_Table_01.csv.csv")
+#myG <- read.csv("myG_LDP.csv", header = T) %>%
+#  select(SNP=1, Chr=3, Pos=4)
+#
+gg_GWAS_Hits <- function(xx, myTs, myR = 2000000, myTitle = "", sigMin = 0,  
+                         myYlab = "Number of Significant Associations",
+                         vlines = NULL, vline.colors = rep("red", length(vlines)) ) {
+  #
+  colnames(myG)[c(1,3,4)] <- c("SNP","Chr","Pos")
+  myCs <- c("darkgreen", "darkorange3", "darkslategray4","darkblue")
+  xx <- xx %>% filter(Trait %in% myTs) %>% mutate(Hits = NA)
+  # i<-1
+  for(i in 1:nrow(xx)) {
+    myChr <- xx$Chr[i]
+    myPos <- xx$Pos[i]
+    myMod <- xx$Model[i]
+    xi <- xx %>% 
+      filter(Chr == myChr, Model == myMod,
+             Pos > myPos-myR, Pos < myPos+myR)
+    xx$Hits[i] <- nrow(xi)
+    xi <- xi %>% filter(!(SNP == xx$SNP[i] & Trait == xx$Trait[i]))
+    xx$Pos[xx$SNP %in% xi$SNP & xx$Trait %in% xi$Trait] <- NA
+  }
+  xx <- xx %>% filter(!is.na(Pos), Hits > sigMin) %>%
+    mutate(Model = factor(Model, levels = c("MLM", "FarmCPU", "BLINK")))
+  #
+  ymax <- max(xx$Hits)
+  #
+  mp <- ggplot(xx, aes(x = Pos / 100000000) ) +
+    geom_blank(data = myG) 
+  #
+  if(!is.null(vlines)) {
+    myGM <- myG %>% 
+      filter(SNP %in% vlines) %>% 
+      mutate(SNP = factor(SNP, levels = vlines)) %>% 
+      arrange(SNP)
+    mp <- mp + 
+      geom_vline(data = myGM, alpha = 0.7, 
+                 aes(xintercept = Pos/1e+08, color = SNP)) + 
+      scale_color_manual(name = NULL, values = vline.colors)
+  }
+  mp <- mp +
+    geom_point(aes(y = Hits, size = Hits, key1 = SNP, 
+                   fill = Model, shape = Model), alpha = 0.7) +
+    facet_grid(paste(myTitle) ~ paste("Chr", Chr), 
+               space = "free_x", scales = "free_x") +
+    scale_shape_manual(values = c(21,24:25), breaks = c("MLM","FarmCPU","BLINK")) +
+    scale_fill_manual(values = myCs, breaks = c("MLM","FarmCPU","BLINK")) +
+    scale_size_continuous(range = c(0.5,3)) +
+    scale_y_continuous(labels = scales::label_number(accuracy = 1),
+                       limits = c(0,ymax)) +
+    theme_gwaspr(legend.position = "bottom") +
+    guides(color = F, size = F) +
+    labs(x = "100 Mbp", y = myYlab)
+  mp
+}
+```
+
+
+```{r}
+mp <- gg_GWAS_Summary(folder = "GWAS_Results/", 
+                      traits = myTraits,
+                      models = c("MLM", "MLMM", "FarmCPU", "BLINK"),
+                      colors = c("darkgreen", "darkred", "darkorange3", "steelblue"),
+                      threshold = 6.7, sug.threshold = 6, 
+                      hlines = c(1.5,3.5), lrows = 2,
+                      vlines = myMarkers,
+                      vline.colors = ,
+                      title = "Summary of Significant GWAS Results")
+ggsave("GWAS_Summary_00_All.png", mp, width = 12, height = 30)
+#
+mp <- gg_GWAS_Hits(xx, myTs, vlines = myMarkers, vline.colors = myMarkersC)
+ggsave("GWAS_Sigs_00_All.png", mp, width = 12, height = 4)
+```
+
+
+```{r}
+#
+myTs <- myTraits[grepl("area.mm.|diameter|axis|pixels|Cotyledon|Plumpness|Mass|Size|volume", myTraits)]
+mp <- gg_GWAS_Summary(folder = "GWAS_Results/", 
+                      traits = myTs,
+                      models = c("MLM", "MLMM", "FarmCPU", "BLINK"),
+                      colors = c("darkgreen", "darkred", "darkorange3", "steelblue"),
+                      threshold = 6.7, sug.threshold = 6, 
+                      hlines = c(1.5,3.5), lrows = 2,
+                      vlines = myMarkers,
+                      vline.colors = myMarkersC,
+                      title = "Summary of Significant GWAS Results")
+ggsave("GWAS_Summary_01_Size.png", mp, width = 12, height = 10)
+#
+mp <- gg_GWAS_Hits(xx, myTs, vlines = myMarkers, vline.colors = myMarkersC,
+                   myTitle = "Size Traits")
+ggsave("GWAS_Sigs_01_Size.png", mp, width = 12, height = 4)
+#
+#
+#
+myTs <- myTraits[grepl("b.mean|b.min|b.max|l.50|dark.cluster|diameter|area.mm.|Testa.Color", myTraits)]
+mp <- gg_GWAS_Summary(folder = "GWAS_Results/", 
+                      traits = myTs,
+                      models = c("MLM", "MLMM", "FarmCPU", "BLINK"),
+                      colors = c("darkgreen", "darkred", "darkorange3", "steelblue"),
+                      threshold = 6.7, sug.threshold = 6, 
+                      hlines = c(1.5,3.5), lrows = 2,
+                      vlines = myMarkers,
+                      vline.colors = c("red", "red", "green", "blue"),
+                      title = "Summary of Significant GWAS Results")
+ggsave("GWAS_Summary_02_Grey.png", mp, width = 12, height = 18)
+#
+mp <- gg_GWAS_Hits(xx, myTs, vlines = myMarkers, vline.colors = myMarkersC,
+                   myTitle = "Grey Seed Coat Traits")
+ggsave("GWAS_Sigs_02_Grey.png", mp, width = 12, height = 4)
+#
+#
+#
+myTs <- myTraits[grepl("a.mean|a.std|a.50|l.mean|b.std|circularity|sphericity|Testa.Color", myTraits)]
+mp <- gg_GWAS_Summary(folder = "GWAS_Results/", 
+                      traits = myTs,
+                      models = c("MLM", "MLMM", "FarmCPU", "BLINK"),
+                      colors = c("darkgreen", "darkred", "darkorange3", "steelblue"),
+                      threshold = 6.7, sug.threshold = 6, 
+                      hlines = c(1.5,3.5), lrows = 2,
+                      vlines = myMarkers,
+                      vline.colors = c("red", "red", "green", "blue"),
+                      title = "Summary of Significant GWAS Results")
+ggsave("GWAS_Summary_03_Tan.png", mp, width = 12, height = 8)
+#
+mp <- gg_GWAS_Hits(xx, myTs, vlines = myMarkers, vline.colors = myMarkersC,
+                   myTitle = "Tan Seed Coat Traits")
+ggsave("GWAS_Sigs_03_Tan.png", mp, width = 12, height = 4)
+#
+#
+#
+myTs <- myTraits[grepl("a.min|b.mean|l.mean|cluster|height|l.mean|l.std|perimeter|sphericity|Testa.Pattern", myTraits)]
+mp <- gg_GWAS_Summary(folder = "GWAS_Results/", 
+                      traits = myTs,
+                      models = c("MLM", "MLMM", "FarmCPU", "BLINK"),
+                      colors = c("darkgreen", "darkred", "darkorange3", "steelblue"),
+                      threshold = 6.7, sug.threshold = 6, 
+                      hlines = c(1.5,3.5), lrows = 2,
+                      vlines = myMarkers,
+                      vline.colors = c("red", "red", "green", "blue"),
+                      title = "Summary of Significant GWAS Results")
+ggsave("GWAS_Summary_04_Pattern.png", mp, width = 12, height = 18)
+#
+mp <- gg_GWAS_Hits(xx, myTs, vlines = myMarkers, vline.colors = myMarkersC,
+                   myTitle = "Seed Patterning Traits")
+ggsave("GWAS_Sigs_04_Pattern.png", mp, width = 12, height = 4)
+#
+```
+
+---
+
+
+
+
+```{r}
+mp <- gg_GWAS_Summary(folder = "GWAS_Results/", 
+                      traits = myTraits[grepl("It17",myTraits)],
+                      models = c("MLM", "MLMM", "FarmCPU", "BLINK"),
+                      colors = c("darkgreen", "darkred", "darkorange3", "steelblue"),
+                      threshold = 6.7, sug.threshold = 6, 
+                      hlines = c(1.5,3.5), lrows = 2,
+                      vlines = c("Lcu.2RBY.Chr1p322528204", "Lcu.2RBY.Chr2p7650362",
+                                 "Lcu.2RBY.Chr3p394373412", "Lcu.2RBY.Chr6p14456115"),
+                      vline.colors = c("red", "red", "green", "blue"),
+                      title = "Summary of Significant GWAS Results")
+ggsave("GWAS_Summary_It17.png", mp, width = 12, height = 10)
+#
+mp <- gg_GWAS_Summary(folder = "GWAS_Results/", 
+                      traits = myTraits[grepl("Mo17",myTraits)],
+                      models = c("MLM", "MLMM", "FarmCPU", "BLINK"),
+                      colors = c("darkgreen", "darkred", "darkorange3", "steelblue"),
+                      threshold = 6.7, sug.threshold = 6, 
+                      hlines = c(1.5,3.5), lrows = 2,
+                      vlines = c("Lcu.2RBY.Chr1p322528204", "Lcu.2RBY.Chr2p7650362",
+                                 "Lcu.2RBY.Chr3p394373412", "Lcu.2RBY.Chr6p14456115"),
+                      vline.colors = c("red", "red", "green", "blue"),
+                      title = "Summary of Significant GWAS Results")
+ggsave("GWAS_Summary_Mo17.png", mp, width = 12, height = 10)
+#
+mp <- gg_GWAS_Summary(folder = "GWAS_Results/", 
+                      traits = myTraits[grepl("Sp17",myTraits)],
+                      models = c("MLM", "MLMM", "FarmCPU", "BLINK"),
+                      colors = c("darkgreen", "darkred", "darkorange3", "steelblue"),
+                      threshold = 6.7, sug.threshold = 6, 
+                      hlines = c(1.5,3.5), lrows = 2,
+                      vlines = c("Lcu.2RBY.Chr1p322528204", "Lcu.2RBY.Chr2p7650362",
+                                 "Lcu.2RBY.Chr3p394373412", "Lcu.2RBY.Chr6p14456115"),
+                      vline.colors = c("red", "red", "green", "blue"),
+                      title = "Summary of Significant GWAS Results")
+ggsave("GWAS_Summary_Sp17.png", mp, width = 12, height = 10)
+#
+mp <- gg_GWAS_Summary(folder = "GWAS_Results/", 
+                      traits = myTraits[grepl("Ro17",myTraits)],
+                      models = c("MLM", "MLMM", "FarmCPU", "BLINK"),
+                      colors = c("darkgreen", "darkred", "darkorange3", "steelblue"),
+                      threshold = 6.7, sug.threshold = 6, 
+                      hlines = c(1.5,3.5), lrows = 2,
+                      vlines = c("Lcu.2RBY.Chr1p322528204", "Lcu.2RBY.Chr2p7650362",
+                                 "Lcu.2RBY.Chr3p394373412", "Lcu.2RBY.Chr6p14456115"),
+                      vline.colors = c("red", "red", "green", "blue"),
+                      title = "Summary of Significant GWAS Results")
+ggsave("GWAS_Summary_Ro17.png", mp, width = 12, height = 10)
+#
+mp <- gg_GWAS_Summary(folder = "GWAS_Results/", 
+                      traits = myTraits[grepl("Su17",myTraits)],
+                      models = c("MLM", "MLMM", "FarmCPU", "BLINK"),
+                      colors = c("darkgreen", "darkred", "darkorange3", "steelblue"),
+                      threshold = 6.7, sug.threshold = 6, 
+                      hlines = c(1.5,3.5), lrows = 2,
+                      vlines = c("Lcu.2RBY.Chr1p322528204", "Lcu.2RBY.Chr2p7650362",
+                                 "Lcu.2RBY.Chr3p394373412", "Lcu.2RBY.Chr6p14456115"),
+                      vline.colors = c("red", "red", "green", "blue"),
+                      title = "Summary of Significant GWAS Results")
+ggsave("GWAS_Summary_Su17.png", mp, width = 12, height = 10)
+#
+mp <- gg_GWAS_Summary(folder = "GWAS_Results/", 
+                      traits = myTraits[grepl("Su18",myTraits)],
+                      models = c("MLM", "MLMM", "FarmCPU", "BLINK"),
+                      colors = c("darkgreen", "darkred", "darkorange3", "steelblue"),
+                      threshold = 6.7, sug.threshold = 6, 
+                      hlines = c(1.5,3.5), lrows = 2,
+                      vlines = c("Lcu.2RBY.Chr1p322528204", "Lcu.2RBY.Chr2p7650362",
+                                 "Lcu.2RBY.Chr3p394373412", "Lcu.2RBY.Chr6p14456115"),
+                      vline.colors = c("red", "red", "green", "blue"),
+                      title = "Summary of Significant GWAS Results")
+ggsave("GWAS_Summary_Su18.png", mp, width = 12, height = 10)
+```
+
+
+```{r}
+# Size
+mp <- gg_GWAS_Summary(folder = "GWAS_Results/", 
+                      traits = myTraits[grepl("area|diameter|volume|perimeter|axis", myTraits)],
+                      models = c("MLM", "MLMM", "FarmCPU", "BLINK"),
+                      colors = c("darkgreen", "darkred", "darkorange3", "steelblue"),
+                      threshold = 6.7, sug.threshold = 6, 
+                      hlines = c(1.5,3.5), lrows = 2,
+                      vlines = c("Lcu.2RBY.Chr1p322528204", "Lcu.2RBY.Chr2p7650362",
+                                 "Lcu.2RBY.Chr3p394373412", "Lcu.2RBY.Chr6p14456115"),
+                      vline.colors = c("red", "red", "green", "blue"),
+                      title = "Summary of Significant GWAS Results")
+ggsave("GWAS_Summary_zSize.png", mp, width = 12, height = 10)
+# Grey
+mp <- gg_GWAS_Summary(folder = "GWAS_Results/", 
+                      traits = myTraits[grepl("b.mean|l.mean|cluster",myTraits)],
+                      models = c("MLM", "MLMM", "FarmCPU", "BLINK"),
+                      colors = c("darkgreen", "darkred", "darkorange3", "steelblue"),
+                      threshold = 6.7, sug.threshold = 6, 
+                      hlines = c(1.5,3.5), lrows = 2,
+                      vlines = c("Lcu.2RBY.Chr1p322528204", "Lcu.2RBY.Chr2p7650362",
+                                 "Lcu.2RBY.Chr3p394373412", "Lcu.2RBY.Chr6p14456115"),
+                      vline.colors = c("red", "red", "green", "blue"),
+                      title = "Summary of Significant GWAS Results")
+ggsave("GWAS_Summary_zGrey.png", mp, width = 12, height = 10)
+# Tan
+mp <- gg_GWAS_Summary(folder = "GWAS_Results/", 
+                      traits = myTraits[grepl("a.mean|height|a.std|cluster|spher|l.50|l.min", myTraits)],
+                      models = c("MLM", "MLMM", "FarmCPU", "BLINK"),
+                      colors = c("darkgreen", "darkred", "darkorange3", "steelblue"),
+                      threshold = 6.7, sug.threshold = 6, 
+                      hlines = c(1.5,3.5), lrows = 2,
+                      vlines = c("Lcu.2RBY.Chr1p322528204", "Lcu.2RBY.Chr2p7650362",
+                                 "Lcu.2RBY.Chr3p394373412", "Lcu.2RBY.Chr6p14456115"),
+                      vline.colors = c("red", "red", "green", "blue"),
+                      title = "Summary of Significant GWAS Results")
+ggsave("GWAS_Summary_zTan.png", mp, width = 12, height = 10)
+# Pattern
+mp <- gg_GWAS_Summary(folder = "GWAS_Results/", 
+                      traits = myTraits[grepl("l.mean|a.min|b.mean|cluster|spher|circ|peri|l.50|l.min", myTraits)],
+                      models = c("MLM", "MLMM", "FarmCPU", "BLINK"),
+                      colors = c("darkgreen", "darkred", "darkorange3", "steelblue"),
+                      threshold = 6.7, sug.threshold = 6, 
+                      hlines = c(1.5,3.5), lrows = 2,
+                      vlines = c("Lcu.2RBY.Chr1p322528204", "Lcu.2RBY.Chr2p7650362",
+                                 "Lcu.2RBY.Chr3p394373412", "Lcu.2RBY.Chr6p14456115"),
+                      vline.colors = c("red", "red", "green", "blue"),
+                      title = "Summary of Significant GWAS Results")
+ggsave("GWAS_Summary_zPattern.png", mp, width = 12, height = 10)
+```
+
+
+```{r}
+for(i in myTraits) {
+  mp <- gg_Manhattan(folder = "GWAS_Results/", trait = i, facet = F,
+                     models = c("MLM", "FarmCPU", "BLINK"),
+                     threshold = 7.3, sug.threshold = 6.7, pmax = 12,
+                     vlines = c("Lcu.2RBY.Chr1p322528204", "Lcu.2RBY.Chr2p7650362",
+                                 "Lcu.2RBY.Chr3p394373412", "Lcu.2RBY.Chr6p14456115"))
+  ggsave(paste0("ManH/Multi_",i,".png"), 
+         mp, width = 12, height = 4, bg = "white")
+}
+```
+
+```{r}
+for(i in myTraits) {
+  mp <- gg_Manhattan(folder = "GWAS_Results_LDP/", trait = i, facet = F,
+                     models = c("MLM", "FarmCPU", "BLINK"),
+                     threshold = 7.3, sug.threshold = 6.7, pmax = 12,
+                     vlines = c("Lcu.2RBY.Chr1p322528204", "Lcu.2RBY.Chr2p7650362",
+                                 "Lcu.2RBY.Chr3p394373412", "Lcu.2RBY.Chr6p14456115"))
+  ggsave(paste0("ManH/Multi_cvCC_",i,".png"), 
+         mp, width = 12, height = 4, bg = "white")
+}
+```
+
+
+---
+
+```{r}
+myLDP <- read.csv("myLDP_Seed.csv") %>% select(Entry, Name)
+#
+xx <- read.csv("Data_BELT/BELT_raw_data/Sutherland 2017.csv") 
+x5 <- xx %>%
+  gather(Trait, Value, 6:ncol(.)) %>%
+  mutate(Value = ifelse(is.infinite(Value), NA, Value)) %>%
+  group_by(metadata_directory_1, Trait) %>%
+  summarise(Value = mean(Value, na.rm = T)) %>%
+  ungroup() %>%
+  mutate(Entry = substr(metadata_directory_1, 1, regexpr("_", metadata_directory_1)-1),
+         Entry = as.integer(Entry),
+         Trait = gsub("_", ".", Trait),
+         Trait = paste0(Trait, "_Su17")) %>% 
+  spread(Trait, Value) %>%
+  left_join(myLDP, by = "Entry") %>%
+  select(-metadata_directory_1, -Entry) %>%
+  select(Name, everything()) %>%
+  mutate(Name = gsub(" ", "_", Name),
+         Name = gsub("-", "\\.", Name),
+         Name = plyr::mapvalues(Name, "3156.11_AGL", "X3156.11_AGL"))
+write.csv(x5, "Data_GWAS/myY_Su17.csv", row.names = F)
+#
+xx <- read.csv("Data_BELT/BELT_raw_data/Italy 2017.csv") 
+x5 <- xx %>%
+  gather(Trait, Value, 6:ncol(.)) %>%
+  mutate(Value = ifelse(is.infinite(Value), NA, Value)) %>%
+  group_by(metadata_directory_1, Trait) %>%
+  summarise(Value = mean(Value, na.rm = T)) %>%
+  ungroup() %>%
+  mutate(Entry = substr(metadata_directory_1, 1, regexpr("_", metadata_directory_1)-1),
+         Entry = as.integer(Entry),
+         Trait = gsub("_", ".", Trait),
+         Trait = paste0(Trait, "_It17")) %>% 
+  spread(Trait, Value) %>%
+  left_join(myLDP, by = "Entry") %>%
+  select(-metadata_directory_1, -Entry) %>%
+  select(Name, everything()) %>%
+  mutate(Name = gsub(" ", "_", Name),
+         Name = gsub("-", "\\.", Name),
+         Name = plyr::mapvalues(Name, "3156.11_AGL", "X3156.11_AGL"))
+write.csv(x5, "Data_GWAS/myY_It17.csv", row.names = F)
+#
+xx <- read.csv("Data_BELT/BELT_raw_data/Morocco 2017.csv") 
+x5 <- xx %>%
+  gather(Trait, Value, 6:ncol(.)) %>%
+  mutate(Value = ifelse(is.infinite(Value), NA, Value)) %>%
+  group_by(metadata_directory_1, Trait) %>%
+  summarise(Value = mean(Value, na.rm = T)) %>%
+  ungroup() %>%
+  mutate(Entry = substr(metadata_directory_1, 1, regexpr("_", metadata_directory_1)-1),
+         Entry = as.integer(Entry),
+         Trait = gsub("_", ".", Trait),
+         Trait = paste0(Trait, "_Mo17")) %>% 
+  spread(Trait, Value) %>%
+  left_join(myLDP, by = "Entry") %>%
+  select(-metadata_directory_1, -Entry) %>%
+  select(Name, everything()) %>%
+  mutate(Name = gsub(" ", "_", Name),
+         Name = gsub("-", "\\.", Name),
+         Name = plyr::mapvalues(Name, "3156.11_AGL", "X3156.11_AGL"))
+write.csv(x5, "Data_GWAS/myY_Mo17.csv", row.names = F)
+#
+xx <- read.csv("Data_BELT/BELT_raw_data/Spain 2017.csv") 
+x5 <- xx %>%
+  gather(Trait, Value, 6:ncol(.)) %>%
+  mutate(Value = ifelse(is.infinite(Value), NA, Value)) %>%
+  group_by(metadata_directory_1, Trait) %>%
+  summarise(Value = mean(Value, na.rm = T)) %>%
+  ungroup() %>%
+  mutate(Entry = substr(metadata_directory_1, 1, regexpr("_", metadata_directory_1)-1),
+         Entry = as.integer(Entry),
+         Trait = gsub("_", ".", Trait),
+         Trait = paste0(Trait, "_Sp17")) %>% 
+  spread(Trait, Value) %>%
+  left_join(myLDP, by = "Entry") %>%
+  select(-metadata_directory_1, -Entry) %>%
+  select(Name, everything()) %>%
+  mutate(Name = gsub(" ", "_", Name),
+         Name = gsub("-", "\\.", Name),
+         Name = plyr::mapvalues(Name, "3156.11_AGL", "X3156.11_AGL"))
+write.csv(x5, "Data_GWAS/myY_Sp17.csv", row.names = F)
+#
+#
+```
 
 ---
 
